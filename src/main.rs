@@ -1,9 +1,11 @@
 mod chunk;
+mod debug;
 
-use chunk::Chunk;
 use chunk::OpCode;
     
 fn main() {
-    let mut chunk = Chunk::new();
-    chunk.write(OpCode::OpReturn);
+    let mut chunk = Vec::<OpCode>::new();
+    chunk.push(OpCode::OpReturn);
+
+    debug::disassemble_chunk(chunk, "test chunk");
 }
