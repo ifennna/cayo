@@ -13,19 +13,23 @@ pub enum Constant {
 
 pub struct Chunk {
     pub code: Vec<OpCode>,
-    constants: Vec<Constant>
+    constants: Vec<Constant>,
+    // TODO: can be more optimal with a RLE string
+    lines: Vec<Offset>
 }
 
 impl Chunk {
     pub fn new() -> Chunk {
         Chunk {
             code: Vec::<OpCode>::new(),
-            constants: Vec::<Constant>::new()
+            constants: Vec::<Constant>::new(),
+            lines: Vec::new()
         }
     }
 
-    pub fn write(&mut self, code: OpCode) {
-        self.code.push(code)
+    pub fn write(&mut self, code: OpCode, line: Offset) {
+        self.code.push(code);
+        self.lines.push(line)
     }
 
     pub fn add_constant(&mut self, value: Constant) -> Offset {
@@ -35,5 +39,9 @@ impl Chunk {
 
     pub fn get_constant(&self, position: Offset) -> Constant {
         self.constants[position]
+    }
+
+    pub fn get_line(&self, position: Offset) -> Offset {
+        self.lines[position]
     }
 }
