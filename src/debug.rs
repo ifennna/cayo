@@ -1,14 +1,14 @@
-use crate::bytecode::{Chunk, OpCode, Offset};
+use crate::bytecode::{Chunk, Offset, OpCode};
 
 pub fn disassemble_chunk(chunk: Chunk, name: &str) {
     println!("=== {} ===", name);
-    
+
     for (index, instruction) in chunk.code.iter().enumerate() {
         disassemble_instruction(&chunk, *instruction, index)
     }
 }
 
-fn disassemble_instruction(chunk: &Chunk, instruction: OpCode, index: usize) {
+pub fn disassemble_instruction(chunk: &Chunk, instruction: OpCode, index: usize) {
     print!("{} ", index);
 
     if index > 0 && chunk.get_line(index) == chunk.get_line(index - 1) {
@@ -20,6 +20,7 @@ fn disassemble_instruction(chunk: &Chunk, instruction: OpCode, index: usize) {
     match instruction {
         OpCode::OpReturn => simple_instruction("OpReturn"),
         OpCode::OpConstant(offset) => constant_instruction("OpConstant", chunk, offset),
+        OpCode::OpNegate => simple_instruction("OpNegate"),
     }
 }
 
