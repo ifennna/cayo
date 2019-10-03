@@ -5,6 +5,15 @@ pub enum OpCode {
     OpConstant(Offset),
     OpNegate,
     OpReturn,
+    BinaryOperation(BinaryOp),
+}
+
+#[derive(Copy, Clone)]
+pub enum BinaryOp {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
 }
 
 #[derive(Debug, Copy, Clone)]

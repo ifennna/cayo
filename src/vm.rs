@@ -6,7 +6,7 @@ const TRACE_EXECUTION: bool = true;
 pub struct VM {
     chunk: Chunk,
     stack: Vec<Constant>,
-    pc: usize,
+    program_counter: usize,
 }
 
 pub enum InterpretationResult {
@@ -20,7 +20,7 @@ impl VM {
         VM {
             chunk: Chunk::new(),
             stack: Vec::<Constant>::new(),
-            pc: 0,
+            program_counter: 0,
         }
     }
 
@@ -38,17 +38,24 @@ impl VM {
         loop {
             match &self.read_byte() {
                 OpCode::OpReturn => {
-                    println!("{:?}", self.stack.pop());
+                    println!("{:?}", self.pop());
                     return InterpretationResult::Ok;
                 }
                 OpCode::OpConstant(offset) => {
                     let value: Constant = self.read_value(*offset);
                     self.stack.push(value)
                 }
-                OpCode::OpNegate => {
-                    match self.pop() {
-                        Constant::Number(n) => self.stack.push(Constant::Number(-n)),
-                    }
+                OpCode::OpNegate => match self.pop() {
+                    Constant::Number(n) => self.stack.push(Constant::Number(-n)),
+                },
+                OpCode::BinaryOperation(operator) => match (self.pop(), self.pop()) {
+                    // the first operand in the stack is always on the right side of the expression
+                    (Constant::Number(num2), Constant::Number(num1)) => match operator {
+                        BinaryOp::Add => self.stack.push(Constant::Number(num1 + num2)),
+                        BinaryOp::Subtract => self.stack.push(Constant::Number(num1 - num2)),
+                        BinaryOp::Multiply => self.stack.push(Constant::Number(num1 * num2)),
+                        BinaryOp::Divide => self.stack.push(Constant::Number(num1 / num2)),
+                    },
                 },
             };
         }
@@ -57,14 +64,16 @@ impl VM {
     fn read_byte(&mut self) -> OpCode {
         // not the fastest implementation, yet to see if we can acquire a pointer directly
         // into the vector
-        let code = self.chunk.code[self.pc];
+        let code = self.chunk.code[self.program_counter];
         if TRACE_EXECUTION {
+            print!("[");
             for value in &self.stack {
-                println!("[{:?}]", value);
+                print!("{:?} ", value);
             }
-            debug::disassemble_instruction(&self.chunk, code, self.pc);
+            print!("]\n");
+            debug::disassemble_instruction(&self.chunk, code, self.program_counter);
         }
-        self.pc += 1;
+        self.program_counter += 1;
         code
     }
 

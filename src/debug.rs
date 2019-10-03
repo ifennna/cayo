@@ -1,4 +1,4 @@
-use crate::bytecode::{Chunk, Offset, OpCode};
+use crate::bytecode::{BinaryOp, Chunk, Offset, OpCode};
 
 pub fn disassemble_chunk(chunk: Chunk, name: &str) {
     println!("=== {} ===", name);
@@ -21,6 +21,12 @@ pub fn disassemble_instruction(chunk: &Chunk, instruction: OpCode, index: usize)
         OpCode::OpReturn => simple_instruction("OpReturn"),
         OpCode::OpConstant(offset) => constant_instruction("OpConstant", chunk, offset),
         OpCode::OpNegate => simple_instruction("OpNegate"),
+        OpCode::BinaryOperation(operator) => match operator {
+            BinaryOp::Add => simple_instruction("OpAdd"),
+            BinaryOp::Subtract => simple_instruction("OpSubtract"),
+            BinaryOp::Multiply => simple_instruction("OpMultiply"),
+            BinaryOp::Divide => simple_instruction("OpDivide"),
+        },
     }
 }
 
