@@ -1,5 +1,5 @@
 use crate::bytecode::*;
-use crate::debug;
+use crate::{compiler, debug};
 
 const TRACE_EXECUTION: bool = true;
 
@@ -9,8 +9,10 @@ pub struct VM {
     program_counter: usize,
 }
 
-pub enum InterpretationResult {
-    Ok,
+pub type Interpretation = i8;
+
+#[derive(Debug)]
+pub enum InterpretationError {
     CompileError,
     RuntimeError,
 }
@@ -24,9 +26,11 @@ impl VM {
         }
     }
 
-    pub fn interpret(&mut self, chunk: Chunk) -> InterpretationResult {
-        self.chunk = chunk;
-        self.run()
+    pub fn interpret(&mut self, source: String) -> Result<Interpretation, InterpretationError> {
+        compiler::compile(source).map_err(|err| println!("{:?}", err));
+        Ok(0)
+        //        self.chunk = chunk;
+        //        self.run()
     }
 
     pub fn pop(&mut self) -> Constant {
@@ -34,12 +38,12 @@ impl VM {
     }
 
     // bytecode dispatch
-    fn run(&mut self) -> InterpretationResult {
+    fn run(&mut self) -> Result<Interpretation, InterpretationError> {
         loop {
             match &self.read_byte() {
                 OpCode::OpReturn => {
                     println!("{:?}", self.pop());
-                    return InterpretationResult::Ok;
+                    return Ok(0);
                 }
                 OpCode::OpConstant(offset) => {
                     let value: Constant = self.read_value(*offset);

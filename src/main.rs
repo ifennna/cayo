@@ -1,28 +1,31 @@
 mod bytecode;
+mod compiler;
 mod debug;
+mod read;
+mod scanner;
 mod vm;
 
-use crate::bytecode::BinaryOp;
-use bytecode::{Chunk, Constant, OpCode};
+use crate::read::CliError;
 use std::env;
-use vm::VM;
+use std::env::Args;
 
 fn main() {
-    let mut vm = VM::new();
-    let mut chunk = Chunk::new();
+    let args = env::args();
 
-    let mut constant = chunk.add_constant(Constant::Number(1.2));
-    chunk.write(OpCode::OpConstant(constant), 123);
-    constant = chunk.add_constant(Constant::Number(3.6));
-    chunk.write(OpCode::OpConstant(constant), 123);
+    match start(args) {
+        Ok(_) => println!("done"),
+        Err(err) => println!("{:?}", err),
+    }
+}
 
-    chunk.write(OpCode::BinaryOperation(BinaryOp::Add), 124);
+fn start(mut args: Args) -> Result<i8, CliError> {
+    match args.len() {
+        1 => read::repl(),
+        2 => read::file(args.nth(1).unwrap()),
 
-    constant = chunk.add_constant(Constant::Number(5.8));
-    chunk.write(OpCode::OpConstant(constant), 125);
-
-    chunk.write(OpCode::BinaryOperation(BinaryOp::Divide), 126);
-    chunk.write(OpCode::OpReturn, 127);
-
-    vm.interpret(chunk);
+        _ => {
+            println!("Usage: cayo [path]");
+            Ok(0)
+        }
+    }
 }
