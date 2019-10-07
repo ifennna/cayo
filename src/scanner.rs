@@ -1,4 +1,4 @@
-use itertools::MultiPeek;
+use itertools::{Itertools, MultiPeek, PeekingNext};
 use std::str::Chars;
 
 #[derive(Debug)]
@@ -86,6 +86,10 @@ fn is_whitespace(c: char) -> bool {
     }
 }
 
+fn is_digit(c: char) -> bool {
+    return c >= '0' && c <= '9';
+}
+
 #[derive(Debug)]
 pub enum ScanError {
     UnknownCharacter(Position, String),
@@ -118,6 +122,7 @@ impl<'a> Scanner<'a> {
             Some('.') => self.make_token(Token::Dot),
             Some('-') => self.make_token(Token::Minus),
             Some('+') => self.make_token(Token::Plus),
+            Some('*') => self.make_token(Token::Star),
             Some('/') => {
                 if self.peek_match('/') {
                     let token = self.make_token(Token::Comment);
@@ -127,8 +132,9 @@ impl<'a> Scanner<'a> {
                     self.make_token(Token::Slash)
                 }
             }
-            Some('*') => self.make_token(Token::Star),
+            Some('"') => self.make_string(),
             Some(c) if is_whitespace(c) => self.make_token(Token::Whitespace),
+            Some(c) if is_digit(c) => self.make_digit(),
             None => self.make_token(Token::EOF),
             _ => Err(ScanError::UnknownCharacter(
                 self.current_position,
@@ -163,6 +169,43 @@ impl<'a> Scanner<'a> {
                 break;
             }
         }
+    }
+
+    fn make_string(&mut self) -> Result<Lexeme, ScanError> {
+        // remove the starting '"'
+        self.current_string.pop();
+        loop {
+            self.advance();
+            if let Some('"') = self.source.peek() {
+                break;
+            }
+        }
+        // skip the trailing '"'
+        self.advance();
+        self.make_token(Token::StringLiteral(String::from(&self.current_string)))
+    }
+
+    fn make_digit(&mut self) -> Result<Lexeme, ScanError> {
+        loop {
+            let ch = self.source.peek();
+            let mut decimal_count = 1;
+
+            match ch {
+                Some('.') if decimal_count != 0 => match self.source.peek() {
+                    Some(&ch) if is_digit(ch) => {
+                        decimal_count -= 1;
+                        self.advance();
+                    }
+                    _ => {}
+                },
+                Some(&c) if is_digit(c) => {
+                    self.advance();
+                }
+                _ => break,
+            }
+        }
+
+        self.make_token(Token::NumberLiteral(self.current_string.parse().unwrap()))
     }
 
     fn make_token(&self, token_type: Token) -> Result<Lexeme, ScanError> {
