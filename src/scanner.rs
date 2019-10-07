@@ -1,3 +1,4 @@
+use itertools::MultiPeek;
 use std::str::Chars;
 
 #[derive(Debug)]
@@ -81,7 +82,7 @@ pub enum ScanError {
 }
 
 pub struct Scanner<'a> {
-    source: Chars<'a>,
+    source: MultiPeek<Chars<'a>>,
     current_string: String,
     current_position: Position,
 }
@@ -89,7 +90,7 @@ pub struct Scanner<'a> {
 impl<'a> Scanner<'a> {
     pub fn new(text: &'a std::string::String) -> Scanner<'a> {
         Scanner {
-            source: text.chars(),
+            source: itertools::multipeek(text.chars().into_iter()),
             current_string: String::new(),
             current_position: Position::reset(),
         }
@@ -130,6 +131,15 @@ impl<'a> Scanner<'a> {
                     self.current_position.next_line();
                     if self.current_string.len() > 0 {
                         return Some(&self.current_string);
+                    }
+                }
+                Some('/') => {
+                    // if the next char is '/', this is a comment and we skip
+                    if Some(&'/') == self.source.peek() {
+                        self.source.next();
+                        while self.source.peek() != Some(&'\n') {
+                            self.source.next();
+                        }
                     }
                 }
                 Some(ch) => self.current_string.push(ch),
