@@ -1,4 +1,4 @@
-use itertools::{Itertools, MultiPeek, PeekingNext};
+use itertools::MultiPeek;
 use std::str::Chars;
 
 #[derive(Debug)]
@@ -45,8 +45,6 @@ pub enum Token {
     True,
     While,
 
-    Error(String),
-
     Comment,
     Whitespace,
     EOF,
@@ -90,6 +88,18 @@ fn is_digit(c: char) -> bool {
     return c >= '0' && c <= '9';
 }
 
+fn is_alpha(c: char) -> bool {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+fn check_keyword(input_string: &String, index: usize, token_string: String, token: Token) -> Token {
+    if input_string[index..] == token_string {
+        return token;
+    }
+
+    Token::Identifier(String::from(input_string))
+}
+
 #[derive(Debug)]
 pub enum ScanError {
     UnknownCharacter(Position, String),
@@ -123,6 +133,34 @@ impl<'a> Scanner<'a> {
             Some('-') => self.make_token(Token::Minus),
             Some('+') => self.make_token(Token::Plus),
             Some('*') => self.make_token(Token::Star),
+            Some('!') => {
+                if self.peek_match('=') {
+                    self.make_token(Token::BangEqual)
+                } else {
+                    self.make_token(Token::Bang)
+                }
+            }
+            Some('=') => {
+                if self.peek_match('=') {
+                    self.make_token(Token::DoubleEqual)
+                } else {
+                    self.make_token(Token::Equal)
+                }
+            }
+            Some('>') => {
+                if self.peek_match('=') {
+                    self.make_token(Token::GreaterEqual)
+                } else {
+                    self.make_token(Token::Greater)
+                }
+            }
+            Some('<') => {
+                if self.peek_match('=') {
+                    self.make_token(Token::LessEqual)
+                } else {
+                    self.make_token(Token::Less)
+                }
+            }
             Some('/') => {
                 if self.peek_match('/') {
                     let token = self.make_token(Token::Comment);
@@ -135,6 +173,7 @@ impl<'a> Scanner<'a> {
             Some('"') => self.make_string(),
             Some(c) if is_whitespace(c) => self.make_token(Token::Whitespace),
             Some(c) if is_digit(c) => self.make_digit(),
+            Some(c) if is_alpha(c) => self.make_identifier(),
             None => self.make_token(Token::EOF),
             _ => Err(ScanError::UnknownCharacter(
                 self.current_position,
@@ -158,6 +197,7 @@ impl<'a> Scanner<'a> {
 
     fn peek_match(&mut self, ch: char) -> bool {
         if self.source.peek() == Some(&ch) {
+            self.source.next();
             return true;
         }
         false
@@ -181,17 +221,18 @@ impl<'a> Scanner<'a> {
             }
         }
         // skip the trailing '"'
-        self.advance();
+        self.source.next();
         self.make_token(Token::StringLiteral(String::from(&self.current_string)))
     }
 
     fn make_digit(&mut self) -> Result<Lexeme, ScanError> {
+        let mut decimal_count = 1;
         loop {
-            let ch = self.source.peek();
-            let mut decimal_count = 1;
-
-            match ch {
+            match self.source.peek() {
+                // handle decimals if present
                 Some('.') if decimal_count != 0 => match self.source.peek() {
+                    // ensure digit after decimal is a valid number, if not we treat the
+                    // decimal as a dot instead
                     Some(&ch) if is_digit(ch) => {
                         decimal_count -= 1;
                         self.advance();
@@ -206,6 +247,50 @@ impl<'a> Scanner<'a> {
         }
 
         self.make_token(Token::NumberLiteral(self.current_string.parse().unwrap()))
+    }
+
+    fn make_identifier(&mut self) -> Result<Lexeme, ScanError> {
+        loop {
+            match self.source.peek() {
+                Some(&ch) if is_alpha(ch) || is_digit(ch) => {
+                    self.advance();
+                }
+                _ => break,
+            }
+        }
+
+        let token_type = self.check_identifier_type();
+
+        self.make_token(token_type)
+    }
+
+    fn check_identifier_type(&mut self) -> Token {
+        let mut current_chars = itertools::multipeek(self.current_string.chars());
+        match current_chars.peek().unwrap() {
+            'a' => check_keyword(&self.current_string, 1, "nd".into(), Token::And),
+            'c' => check_keyword(&self.current_string, 1, "lass".into(), Token::Class),
+            'e' => check_keyword(&self.current_string, 1, "lse".into(), Token::Else),
+            'f' if self.current_string.len() > 1 => match current_chars.peek().unwrap() {
+                'a' => check_keyword(&self.current_string, 2, "lse".into(), Token::False),
+                'o' => check_keyword(&self.current_string, 2, "r".into(), Token::For),
+                'u' => check_keyword(&self.current_string, 2, "nc".into(), Token::Func),
+                _ => Token::Identifier(String::from(&self.current_string)),
+            },
+            'i' => check_keyword(&self.current_string, 1, "f".into(), Token::If),
+            'l' => check_keyword(&self.current_string, 1, "f".into(), Token::Let),
+            'n' => check_keyword(&self.current_string, 1, "il".into(), Token::Nil),
+            'o' => check_keyword(&self.current_string, 1, "hile".into(), Token::Or),
+            'p' => check_keyword(&self.current_string, 1, "hile".into(), Token::Print),
+            'r' => check_keyword(&self.current_string, 1, "hile".into(), Token::Return),
+            's' => check_keyword(&self.current_string, 1, "hile".into(), Token::Super),
+            't' if self.current_string.len() > 1 => match current_chars.peek().unwrap() {
+                'h' => check_keyword(&self.current_string, 2, "is".into(), Token::This),
+                'r' => check_keyword(&self.current_string, 2, "ue".into(), Token::True),
+                _ => Token::Identifier(String::from(&self.current_string)),
+            },
+            'w' => check_keyword(&self.current_string, 1, "hile".into(), Token::While),
+            _ => Token::Identifier(String::from(&self.current_string)),
+        }
     }
 
     fn make_token(&self, token_type: Token) -> Result<Lexeme, ScanError> {
